@@ -36,48 +36,8 @@ async function getDataAsync(url) {
     throw error;
 }
 
-// Загрузка данных через промисы (то же самое что `getDataAsync`)
-function getDataPromise(url) {
-    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-    return fetch(url, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        redirect: 'follow',
-    }).then(
-        (response) => {
-            // Если мы тут, значит, запрос выполнился.
-            // Но там может быть 404, 500, и т.д., поэтому проверяем ответ.
-            if (response.ok) {
-                return response.json();
-            }
-            // Пример кастомной ошибки (если нужно проставить какие-то поля
-            // для внешнего кода). Можно зареджектить и сам `response`, смотря
-            // какой у вас контракт. Главное перевести код в ветку `catch`.
-            return Promise.reject({
-                status: response.status,
-                customError: 'wtfPromise',
-            });
-        },
-
-        // При сетевой ошибке (мы оффлайн) из fetch вылетит эксцепшн,
-        // и мы попадём в `onRejected` или в `.catch()` на промисе.
-        // Если не добавить `onRejected` или `catch`, при ошибке будет
-        // эксцепшн `Uncaught (in promise)`.
-        (error) => {
-            // Если не вернуть `Promise.reject()`, для внешнего кода
-            // промис будет зарезолвлен с `undefined`, и мы не попадём
-            // в ветку `catch` для обработки ошибок, а скорее всего
-            // получим другой эксцепшн, потому что у нас `undefined`
-            // вместо данных, с которыми мы работаем.
-            return Promise.reject(error);
-        }
-    );
-}
-
 // Две функции просто для примера, выберите с await или promise, какая нравится
-const getData = getDataAsync || getDataPromise;
+const getData = getDataAsync;
 
 async function loadCountriesData() {
     let countries = [];
@@ -135,8 +95,52 @@ const output = document.getElementById('output');
     toCountry.disabled = false;
     submit.disabled = false;
 
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (!fromCountry.value || !toCountry.value) {
+            return;
+        }
+        output.textContent = `Calculating a route from ${fromCountry.value} to ${toCountry.value}...`;
+        const countries = Object.entries(countriesData); // [['RUS', {...}], [], []]
+        const cca3CountryFrom = countries.find((c) => c[1].name.common === fromCountry.value)[0];
+        const cca3CountryTo = countries.find((c) => c[1].name.common === toCountry.value)[0];
+
+        const visitedFrom = { [cca3CountryFrom]: null };
+        const queue = [cca3CountryFrom];
+        let i = 0;
+
+        while (i < queue.length) {
+            const countryCode = queue[i];
+            i += 1;
+            // eslint-disable-next-line no-await-in-loop
+            const countryData = await getData(
+                `https://restcountries.com/v3.1/alpha/${countryCode}?fields=name&fields=borders`
+            );
+            if (countryData.borders.includes(cca3CountryTo)) {
+                visitedFrom[cca3CountryTo] = countryCode;
+                break;
+            }
+            for (const borderCountry of countryData.borders) {
+                if (!(borderCountry in visitedFrom)) {
+                    visitedFrom[borderCountry] = countryCode;
+                    queue.push(borderCountry);
+                }
+            }
+        }
+        if (!visitedFrom[cca3CountryTo]) {
+            output.textContent = `There is no route from ${fromCountry.value} to ${toCountry.value}. Requests: ${i}`;
+        } else {
+            console.log(visitedFrom);
+            const route = [];
+            let currentCountry = cca3CountryTo;
+            while (currentCountry) {
+                route.push(currentCountry);
+                currentCountry = visitedFrom[currentCountry];
+            }
+            route.reverse();
+            const routeCountryNames = route.map((code) => countriesData[code].name.common);
+            output.textContent = `The route may be: ${routeCountryNames.join(', ')}. Requests: ${i}`;
+        }
         // TODO: Вывести, откуда и куда едем, и что идёт расчёт.
         // TODO: Рассчитать маршрут из одной страны в другую за минимум запросов.
         // TODO: Вывести маршрут и общее количество запросов.
