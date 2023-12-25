@@ -6,9 +6,11 @@
   "author": "'Ivan Petropolsky' <i.petropolsky@hh.ru>",
   "license": "MIT",
   "scripts": {
+    "build": "npx tsc",
+    "dev": "npx tsc; npx http-server",
     "postinstall": "cp ./githooks/* .git/hooks",
-    "lint-staged": "lint-staged",
-    "http-server": "http-server"
+    "lint-staged": "npx lint-staged",
+    "http-server": "npx http-server"
   },
   "devDependencies": {
     "eslint": "8.29.0",
@@ -16,6 +18,10 @@
     "eslint-plugin-prettier": "4.2.1",
     "http-server": "14.1.1",
     "lint-staged": "13.1.0",
-    "prettier": "2.8.0"
+    "prettier": "2.8.0",
+    "typescript": "5.3.3"
+  },
+  "dependencies": {
+    "@amcharts/amcharts5": "5.7.2"
   }
 }

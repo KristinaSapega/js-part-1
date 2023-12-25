@@ -1,4 +1,7 @@
-export default {
+'use strict';
+
+Object.defineProperty(exports, '__esModule', { value: true });
+exports.default = {
     VCT: 'VC',
     GUF: 'GF',
     FRO: 'FO',
